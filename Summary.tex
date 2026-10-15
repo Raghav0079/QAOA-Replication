@@ -1,0 +1,87 @@
+\documentclass[11pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts,braket}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+% Formatting
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+% Title & Metadata
+\title{\textbf{Paper Summary \& Replication Notes:\\ A Quantum Approximate Optimization Algorithm}}
+\author{
+    \textbf{Original Paper:} Edward Farhi, Jeffrey Goldstone, and Sam Gutmann (MIT, 2014) \\
+    \textbf{Reference:} \href{https://arxiv.org/abs/1411.4028}{arXiv:1411.4028 [quant-ph]}
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+\subsection{Classical Combinatorial Optimization Setup}
+A combinatorial optimization problem is defined over $n$ bits and $m$ clauses. Each clause $\alpha \in \{1, \dots, m\}$ acts as a constraint on a small subset of the $n$ bits. For a bitstring $z = z_1 z_2 \dots z_n$, a clause function $C_\alpha(z)$ evaluates to $1$ if $z$ satisfies clause $\alpha$, and $0$ otherwise. The global objective function counts the total number of satisfied clauses:
+\begin{equation}
+    C(z) = \sum_{\alpha=1}^{m} C_\alpha(z)
+\end{equation}
+Whereas exact optimization seeks the maximum value $\max_z C(z)$, approximate optimization aims to find a bitstring $z$ such that $C(z)$ is close to $\max_z C(z)$.
+
+\subsection{Quantum Operator Formulation}
+The Quantum Approximate Optimization Algorithm (QAOA) maps the classical problem onto a $2^n$-dimensional Hilbert space with computational basis vectors $\ket{z}$:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Objective Operator ($C$):} A diagonal operator in the computational basis defined by $C\ket{z} = C(z)\ket{z}$.
+    \item \textbf{Phase-Separation Unitary ($U(C, \gamma)$):} Depends on angle $\gamma \in [0, 2\pi)$ (since $C$ has integer eigenvalues):
+    \begin{equation}
+        U(C, \gamma) = e^{-i\gamma C} = \prod_{\alpha=1}^{m} e^{-i\gamma C_\alpha}
+    \end{equation}
+    Because all clause terms $C_\alpha$ are diagonal in the computational basis, they commute with one another, and each $e^{-i\gamma C_\alpha}$ can be implemented as a local quantum circuit of depth at most $O(1)$ acting only on the qubits in clause $\alpha$.
+    
+    \item \textbf{Mixing Operator ($B$) and Unitary ($U(B, \beta)$):} Defined as the sum of single-qubit Pauli-$X$ operators $\sigma_j^x$, with mixing angle $\beta \in [0, \pi)$:
+    \begin{equation}
+        B = \sum_{j=1}^{n} \sigma_j^x, \qquad U(B, \beta) = e^{-i\beta B} = \prod_{j=1}^{n} e^{-i\beta \sigma_j^x}
+    \end{equation}
+\end{itemize}
+
+\subsection{The Depth-$p$ Variational State and Objective}
+The algorithm starts in the uniform superposition over all $2^n$ computational basis states, which is also the highest-energy eigenstate of $B$:
+\begin{equation}
+    \ket{s} = \frac{1}{\sqrt{2^n}} \sum_{z} \ket{z} = \ket{+}^{\otimes n}
+\end{equation}
+For any integer circuit depth $p \ge 1$ and $2p$ real variational angles $\boldsymbol{\gamma} = (\gamma_1, \dots, \gamma_p)$ and $\boldsymbol{\beta} = (\beta_1, \dots, \beta_p)$, the parameterized quantum state is constructed by alternating $U(C, \gamma_k)$ and $U(B, \beta_k)$:
+\begin{equation}
+    \ket{\boldsymbol{\gamma}, \boldsymbol{\beta}} = U(B, \beta_p) U(C, \gamma_p) \cdots U(B, \beta_1) U(C, \gamma_1) \ket{s}
+\end{equation}
+Measuring $\ket{\boldsymbol{\gamma}, \boldsymbol{\beta}}$ in the computational basis yields a candidate bitstring $z$ with expectation value:
+\begin{equation}
+    F_p(\boldsymbol{\gamma}, \boldsymbol{\beta}) = \braket{\boldsymbol{\gamma}, \boldsymbol{\beta} | C | \boldsymbol{\gamma}, \boldsymbol{\beta}}
+\end{equation}
+Let $M_p$ denote the maximum expectation value over all angle choices at depth $p$:
+\begin{equation}
+    M_p = \max_{\boldsymbol{\gamma}, \boldsymbol{\beta}} F_p(\boldsymbol{\gamma}, \boldsymbol{\beta})
+\end{equation}
+
+\subsection{Monotonicity and Adiabatic Convergence ($p \to \infty$)}
+Since setting the $p$-th layer angles to zero ($\gamma_p = 0, \beta_p = 0$) reduces the depth-$p$ state to a depth-$(p-1)$ state, increasing circuit depth can never degrade optimal performance:
+\begin{equation}
+    M_p \ge M_{p-1}
+\end{equation}
+Furthermore, Trotterizing the Quantum Adiabatic Algorithm (QAA) under the interpolating Hamiltonian $H(t) = \left(1 - \frac{t}{T}\right)B + \frac{t}{T}C$ produces an alternating sequence of $U(C, \gamma_k)$ and $U(B, \beta_k)$ with small angles whose sum is proportional to total evolution time $T$. Because $\ket{s}$ is the highest-energy eigenstate of $B$, a sufficiently slow adiabatic evolution ($T \to \infty$) reaches the highest-energy eigenstate of $C$, guaranteeing exact convergence in the infinite-depth limit:
+\begin{equation}
+    \lim_{p \to \infty} M_p = \max_{z} C(z)
+\end{equation}
+
+\end{document}
